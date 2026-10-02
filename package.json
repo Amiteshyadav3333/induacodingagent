@@ -1,0 +1,105 @@
+{
+  "name": "indus-coding-agent",
+  "version": "0.1.0",
+  "description": "A local AI coding workspace with an integrated development environment.",
+  "author": "Indus Coding Agent",
+  "private": true,
+  "type": "module",
+  "main": "apps/desktop/electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:desktop\"",
+    "dev:server": "tsx watch apps/server/src/index.ts",
+    "dev:desktop": "vite --host 127.0.0.1",
+    "dev:electron": "wait-on http://127.0.0.1:5173 http://127.0.0.1:4317/api/health && electron .",
+    "build": "tsc -b && vite build && npm run build:server",
+    "build:server": "esbuild apps/server/src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/server/index.cjs",
+    "desktop": "npm run build:server && concurrently -k \"npm:dev:server\" \"npm:dev:desktop\" \"npm:dev:electron\"",
+    "start": "tsx apps/server/src/index.ts",
+    "dev:native": "wait-on http://127.0.0.1:5173 http://127.0.0.1:4317/api/health && npm run build:native && .indus/bin/IndusCodingAgent",
+    "test": "node --test",
+    "build:native": "swiftc -module-cache-path .swift-cache apps/desktop/DesktopShell.swift -o .indus/bin/IndusCodingAgent",
+    "release:mac:arm64": "npm run build && electron-builder --mac pkg zip --arm64 --publish never",
+    "release:mac:x64": "npm run build && electron-builder --mac pkg zip --x64 --publish never",
+    "release:win:x64": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "release:linux:x64": "npm run build && electron-builder --linux AppImage deb --x64 --publish never"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5",
+    "wait-on": "^9.5.1"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "node-pty@1.1.0": true
+  },
+  "build": {
+    "appId": "com.indus.codingagent",
+    "productName": "Indus Coding Agent",
+    "executableName": "induscodingagent",
+    "asar": true,
+    "directories": {
+      "buildResources": "build/icons",
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "apps/desktop/electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/server/index.cjs",
+        "to": "server/index.cjs"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icons/indus.icns",
+      "target": ["dmg", "pkg", "zip"],
+      "hardenedRuntime": false
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icons/indus.ico",
+      "artifactName": "${productName}-${version}-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "icon": "build/icons",
+      "artifactName": "${productName}-${version}-Linux-${arch}.${ext}",
+      "synopsis": "Local AI coding workspace"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+release
+.electron-cache
+.builder-cache
+.env
+.DS_Store
+*.tsbuildinfo
+.swift-cache
+.npm-cache
+
+.indus/bin/

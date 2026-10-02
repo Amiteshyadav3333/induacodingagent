@@ -1,0 +1,68 @@
+name: Desktop releases
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple silicon
+            runner: macos-latest
+            package_script: release:mac:arm64
+          - label: macOS Intel
+            runner: macos-latest
+            package_script: release:mac:x64
+          - label: Windows x64
+            runner: windows-latest
+            package_script: release:win:x64
+          - label: Linux x64
+            runner: ubuntu-latest
+            package_script: release:linux:x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg
+      - run: npm ci --no-audit
+      - name: Build installers
+        run: npm run ${{ matrix.package_script }}
+      - name: Build macOS disk image
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac dmg --${{ contains(matrix.package_script, 'x64') && 'x64' || 'arm64' }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ strategy.job-index }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: release
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
