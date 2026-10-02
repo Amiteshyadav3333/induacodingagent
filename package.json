@@ -76,11 +76,13 @@
         "to": "server/index.cjs"
       }
     ],
+    "afterPack": "scripts/after-pack.cjs",
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "build/icons/indus.icns",
       "target": ["dmg", "pkg", "zip"],
-      "hardenedRuntime": false
+      "minimumSystemVersion": "13.0",
+      "hardenedRuntime": true
     },
     "win": {
       "target": ["nsis"],

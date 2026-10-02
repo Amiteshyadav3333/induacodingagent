@@ -39,15 +39,44 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg
       - run: npm ci --no-audit
+      - name: Run tests
+        run: npm test
       - name: Build installers
         run: npm run ${{ matrix.package_script }}
+      - name: Verify macOS app bundle
+        if: runner.os == 'macOS'
+        run: |
+          APP="$(find release -maxdepth 3 -name '*.app' -type d | head -n 1)"
+          test -n "$APP"
+          test -x "$APP/Contents/MacOS/induscodingagent"
+          plutil -lint "$APP/Contents/Info.plist"
+          codesign --verify --deep --strict "$APP"
+      - name: Verify Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw 'Windows installer was not produced.' }
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($signature.Status -notin @('NotSigned', 'Valid')) { throw "Invalid installer signature: $($signature.Status)" }
+      - name: Verify Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          test -n "$(find release -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "$(find release -maxdepth 1 -name '*.deb' -print -quit)"
       - name: Build macOS disk image
         if: runner.os == 'macOS'
         run: npx electron-builder --mac dmg --${{ contains(matrix.package_script, 'x64') && 'x64' || 'arm64' }} --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ strategy.job-index }}
-          path: release/*
+          path: |
+            release/*.pkg
+            release/*mac.zip
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
           if-no-files-found: error
           retention-days: 14
 
